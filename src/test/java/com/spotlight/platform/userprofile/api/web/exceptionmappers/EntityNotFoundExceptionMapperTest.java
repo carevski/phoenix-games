@@ -24,6 +24,7 @@ class EntityNotFoundExceptionMapperTest {
             .addResource(new MockResource())
             .setRegisterDefaultExceptionMappers(false)
             .addProvider(new EntityNotFoundExceptionMapper())
+            .addProvider(new IllegalArgumentExceptionMapper())
             .build();
 
     private Client client;

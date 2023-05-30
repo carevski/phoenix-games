@@ -9,6 +9,9 @@ import com.spotlight.platform.userprofile.api.model.profile.primitives.UserProfi
 import java.time.Instant;
 import java.util.Map;
 
-public record UserProfile(@JsonProperty UserId userId, @JsonProperty @JsonFormat(shape = JsonFormat.Shape.STRING) Instant latestUpdateTime,
-                          @JsonProperty Map<UserProfilePropertyName, UserProfilePropertyValue> userProfileProperties) {
+public record UserProfile(
+        @JsonProperty UserId userId,
+        @JsonProperty @JsonFormat(shape = JsonFormat.Shape.STRING) Instant latestUpdateTime,
+        @JsonProperty Map<UserProfilePropertyName, UserProfilePropertyValue> userProfileProperties
+) {
 }

@@ -17,7 +17,7 @@ public class UserProfilePropertyValue {
     }
 
     @JsonValue
-    protected Object getValue() {
+    public Object getValue() {
         return value;
     }
 
