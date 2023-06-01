@@ -1,14 +1,10 @@
 package com.spotlight.platform.userprofile.api.web.resources;
 
-import com.google.inject.ConfigurationException;
-import com.google.inject.Injector;
-import com.google.inject.Key;
-import com.google.inject.name.Names;
 import com.spotlight.platform.userprofile.api.core.profile.UserProfileService;
+import com.spotlight.platform.userprofile.api.model.commands.CommandFactory;
 import com.spotlight.platform.userprofile.api.model.commands.UserCommand;
 import com.spotlight.platform.userprofile.api.model.profile.UserProfile;
 import com.spotlight.platform.userprofile.api.model.profile.primitives.UserId;
-import io.dropwizard.core.cli.Command;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,12 +22,12 @@ public class UserResource {
 
     private final UserProfileService userProfileService;
 
-    private final Injector injector;
+    private final CommandFactory commandFactory;
 
     @Inject
-    public UserResource(UserProfileService userProfileService, Injector injector) {
+    public UserResource(UserProfileService userProfileService, CommandFactory commandFactory) {
         this.userProfileService = userProfileService;
-        this.injector = injector;
+        this.commandFactory = commandFactory;
     }
 
     @GET
@@ -44,7 +40,7 @@ public class UserResource {
     @Path("command")
     public UserProfile executeCommand(@Valid CommandEntity commandEntity) {
         buildCommand(commandEntity).execute();
-        return userProfileService.get(commandEntity.getUserId());
+        return userProfileService.get(commandEntity.userId());
     }
 
     @POST
@@ -56,26 +52,8 @@ public class UserResource {
     }
 
     private UserCommand buildCommand(CommandEntity commandEntity) {
-        UserCommand command = instance(commandEntity.getType());
+        UserCommand command = commandFactory.instance(commandEntity.type());
         command.setCommandData(commandEntity);
         return command;
-    }
-
-    /**
-     * This builds an instance of the given type of command.
-     * <p>
-     * Here we are leveraging guice's named beans to that
-     * we make adding a command as easy as possible
-     *
-     * @param type the type of the command
-     * @return instance of the given command type
-     */
-    private UserCommand instance(String type) {
-        try {
-            return injector.getInstance(Key.get(UserCommand.class, Names.named(type)));
-        } catch (ConfigurationException configurationException) {
-            log.error("Command for type: {} does not exist", type);
-            throw new BadRequestException("Command type is not supported");
-        }
     }
 }

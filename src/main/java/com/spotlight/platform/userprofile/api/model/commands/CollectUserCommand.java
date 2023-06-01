@@ -35,13 +35,23 @@ public class CollectUserCommand implements UserCommand {
 
     @Override
     public void execute() {
-        UserProfile userProfile = resolveUser(commandData.getUserId());
+        validateCommandData();
+        UserProfile userProfile = resolveUser(commandData.userId());
         HashMap<UserProfilePropertyName, UserProfilePropertyValue> userPropertiesClone =
                 new HashMap<>(userProfile.userProfileProperties());
-        if (collect(userPropertiesClone, commandData.getProperties())) {
+        if (collect(userPropertiesClone, commandData.properties())) {
             //since UserProfile is immutable we are creating a new instance
             //each time we update but also update the latestUpdateTime
-            userProfileDao.put(new UserProfile(commandData.getUserId(), Instant.now(), userPropertiesClone));
+            userProfileDao.put(new UserProfile(commandData.userId(), Instant.now(), userPropertiesClone));
+        }
+    }
+
+    private void validateCommandData() {
+        if (null == commandData) {
+            throw new IllegalStateException("Command data are not set");
+        }
+        if (!"collect".equalsIgnoreCase(commandData.type())) {
+            throw new IllegalStateException("Missconfigured command");
         }
     }
 
