@@ -8,6 +8,7 @@ import com.spotlight.platform.userprofile.api.core.profile.UserProfileService;
 import com.spotlight.platform.userprofile.api.model.commands.UserCommand;
 import com.spotlight.platform.userprofile.api.model.profile.UserProfile;
 import com.spotlight.platform.userprofile.api.model.profile.primitives.UserId;
+import io.dropwizard.core.cli.Command;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,8 +16,9 @@ import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
+import java.util.List;
 
-@Path("/users/{userId}")
+@Path("/users")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class UserResource {
@@ -32,23 +34,31 @@ public class UserResource {
         this.injector = injector;
     }
 
-    @Path("profile")
     @GET
+    @Path("{userId}/profile")
     public UserProfile getUserProfile(@Valid @PathParam("userId") UserId userId) {
         return userProfileService.get(userId);
     }
 
     @POST
     @Path("command")
-    public UserProfile executeCommand(@Valid @PathParam("userId") UserId userId, @Valid CommandWS commandEntity) {
-        if (!userId.equals(commandEntity.getUserId())) {
-            log.error("Path parameter userId does not match command userId. path userId:{}, command userId:{}", userId, commandEntity.getUserId());
-            throw new BadRequestException("Path parameter userId does not match command userId");
+    public UserProfile executeCommand(@Valid CommandEntity commandEntity) {
+        buildCommand(commandEntity).execute();
+        return userProfileService.get(commandEntity.getUserId());
+    }
+
+    @POST
+    @Path("commands")
+    public void executeCommands(@Valid List<CommandEntity> commands) {
+        for (CommandEntity command : commands) {
+            buildCommand(command).execute();
         }
-        UserCommand userCommand = instance(commandEntity.getType());
-        userCommand.setCommandData(commandEntity);
-        userCommand.process();
-        return userProfileService.get(userId);
+    }
+
+    private UserCommand buildCommand(CommandEntity commandEntity) {
+        UserCommand command = instance(commandEntity.getType());
+        command.setCommandData(commandEntity);
+        return command;
     }
 
     /**

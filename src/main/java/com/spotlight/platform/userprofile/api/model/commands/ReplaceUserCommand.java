@@ -5,7 +5,7 @@ import com.spotlight.platform.userprofile.api.model.profile.UserProfile;
 import com.spotlight.platform.userprofile.api.model.profile.primitives.UserId;
 import com.spotlight.platform.userprofile.api.model.profile.primitives.UserProfilePropertyName;
 import com.spotlight.platform.userprofile.api.model.profile.primitives.UserProfilePropertyValue;
-import com.spotlight.platform.userprofile.api.web.resources.CommandWS;
+import com.spotlight.platform.userprofile.api.web.resources.CommandEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +19,7 @@ public class ReplaceUserCommand implements UserCommand {
 
     private static final Logger log = LoggerFactory.getLogger(ReplaceUserCommand.class);
     private final UserProfileDao userProfileDao;
-    private CommandWS commandData;
+    private CommandEntity commandData;
 
     @Inject
     public ReplaceUserCommand(UserProfileDao userProfileDao) {
@@ -27,11 +27,11 @@ public class ReplaceUserCommand implements UserCommand {
     }
 
     @Override
-    public void setCommandData(CommandWS commandData) {
+    public void setCommandData(CommandEntity commandData) {
         this.commandData = commandData;
     }
     @Override
-    public void process() {
+    public void execute() {
         UserProfile userProfile = resolveUser(commandData.getUserId());
         replace(userProfile, commandData.getProperties());
         userProfileDao.put(userProfile);

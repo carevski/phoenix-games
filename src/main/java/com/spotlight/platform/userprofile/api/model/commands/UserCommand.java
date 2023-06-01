@@ -1,10 +1,10 @@
 package com.spotlight.platform.userprofile.api.model.commands;
 
-import com.spotlight.platform.userprofile.api.web.resources.CommandWS;
+import com.spotlight.platform.userprofile.api.web.resources.CommandEntity;
 
 public interface UserCommand {
 
-    void setCommandData(CommandWS commandData);
+    void setCommandData(CommandEntity commandData);
 
-    void process();
+    void execute();
 }
