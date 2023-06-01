@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class CollectUserCommand implements UserCommand {
 
@@ -35,8 +36,13 @@ public class CollectUserCommand implements UserCommand {
     @Override
     public void execute() {
         UserProfile userProfile = resolveUser(commandData.getUserId());
-        collect(userProfile, commandData.getProperties());
-        userProfileDao.put(userProfile);
+        HashMap<UserProfilePropertyName, UserProfilePropertyValue> userPropertiesClone =
+                new HashMap<>(userProfile.userProfileProperties());
+        if (collect(userPropertiesClone, commandData.getProperties())) {
+            //since UserProfile is immutable we are creating a new instance
+            //each time we update but also update the latestUpdateTime
+            userProfileDao.put(new UserProfile(commandData.getUserId(), Instant.now(), userPropertiesClone));
+        }
     }
 
     private UserProfile resolveUser(UserId userId) {
@@ -45,15 +51,19 @@ public class CollectUserCommand implements UserCommand {
                 .orElseGet(() -> new UserProfile(userId, Instant.now(), new HashMap<>()));
     }
 
-    @SuppressWarnings("unchecked") //unfortunate
-    private void collect(UserProfile userProfile, Map<String, Object> properties) {
+    @SuppressWarnings("unchecked") //unfortunate, but to eliminate it I would've had to do deeper changes to the model
+    private boolean collect(
+            Map<UserProfilePropertyName, UserProfilePropertyValue> userProperties,
+            Map<String, Object> properties
+    ) {
+        final AtomicBoolean updated = new AtomicBoolean(false);
         properties.forEach((key, value) -> {
             if (!(value instanceof List)) {
                 log.error("Property value is not a list type, key={}, value={}", key, value);
                 throw new IllegalArgumentException("Property value is not a list type");
             }
             UserProfilePropertyName propName = UserProfilePropertyName.valueOf(key);
-            UserProfilePropertyValue propValue = userProfile.userProfileProperties()
+            UserProfilePropertyValue propValue = userProperties
                     .getOrDefault(propName, UserProfilePropertyValue.valueOf(new ArrayList<>()));
 
             if (!(propValue.getValue() instanceof List)) {
@@ -64,8 +74,9 @@ public class CollectUserCommand implements UserCommand {
             clone.addAll((List<Object>) value);
 
             UserProfilePropertyValue newValue = UserProfilePropertyValue.valueOf(clone);
-
-            userProfile.userProfileProperties().put(propName, newValue);
+            updated.set(true);
+            userProperties.put(propName, newValue);
         });
+        return updated.get();
     }
 }

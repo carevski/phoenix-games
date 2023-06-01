@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ReplaceUserCommand implements UserCommand {
 
@@ -33,8 +34,13 @@ public class ReplaceUserCommand implements UserCommand {
     @Override
     public void execute() {
         UserProfile userProfile = resolveUser(commandData.getUserId());
-        replace(userProfile, commandData.getProperties());
-        userProfileDao.put(userProfile);
+        HashMap<UserProfilePropertyName, UserProfilePropertyValue> userPropertiesClone =
+                new HashMap<>(userProfile.userProfileProperties());
+        if (replace(userPropertiesClone, commandData.getProperties())) {
+            //since UserProfile is immutable we are creating a new instance
+            //each time we update but also update the latestUpdateTime
+            userProfileDao.put(new UserProfile(commandData.getUserId(), Instant.now(), userPropertiesClone));
+        }
     }
 
     private UserProfile resolveUser(UserId userId) {
@@ -43,7 +49,11 @@ public class ReplaceUserCommand implements UserCommand {
                 .orElseGet(() -> new UserProfile(userId, Instant.now(), new HashMap<>()));
     }
 
-    private void replace(UserProfile userProfile, Map<String, Object> properties) {
+    private boolean replace(
+            Map<UserProfilePropertyName, UserProfilePropertyValue> userProperties,
+            Map<String, Object> properties
+    ) {
+        final AtomicBoolean updated = new AtomicBoolean(false);
         properties.forEach((key, value) -> {
             if(!(value instanceof Integer) && !(value instanceof List)) {
                 log.error("Property value is not a integer/list type, key={}, value={}", key, value);
@@ -51,7 +61,9 @@ public class ReplaceUserCommand implements UserCommand {
             }
             UserProfilePropertyName propName = UserProfilePropertyName.valueOf(key);
             UserProfilePropertyValue newValue = UserProfilePropertyValue.valueOf(value);
-            userProfile.userProfileProperties().put(propName, newValue);
+            updated.set(true);
+            userProperties.put(propName, newValue);
         });
+        return updated.get();
     }
 }

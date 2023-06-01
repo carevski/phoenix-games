@@ -13,6 +13,7 @@ import javax.inject.Inject;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class IncrementUserCommand implements UserCommand {
 
@@ -35,8 +36,13 @@ public class IncrementUserCommand implements UserCommand {
     @Override
     public void execute() {
         UserProfile userProfile = resolveUser(commandData.getUserId());
-        increment(userProfile, commandData.getProperties());
-        userProfileDao.put(userProfile);
+        HashMap<UserProfilePropertyName, UserProfilePropertyValue> userPropertiesClone =
+                new HashMap<>(userProfile.userProfileProperties());
+        if (increment(userPropertiesClone, commandData.getProperties())) {
+            //since UserProfile is immutable we are creating a new instance
+            //each time we update but also update the latestUpdateTime
+            userProfileDao.put(new UserProfile(commandData.getUserId(), Instant.now(), userPropertiesClone));
+        }
     }
 
     private UserProfile resolveUser(UserId userId) {
@@ -45,25 +51,29 @@ public class IncrementUserCommand implements UserCommand {
                 .orElseGet(() -> new UserProfile(userId, Instant.now(), new HashMap<>()));
     }
 
-    private void increment(UserProfile userProfile, Map<String, Object> properties) {
+    private boolean increment(
+            Map<UserProfilePropertyName, UserProfilePropertyValue> userProperties,
+            Map<String, Object> properties
+    ) {
+        final AtomicBoolean updated = new AtomicBoolean(false);
         properties.forEach((key, value) -> {
-            if(!(value instanceof Integer)) {
+            if (!(value instanceof Integer)) {
                 log.error("Property value is not a integer type, key={}, value={}", key, value);
                 throw new IllegalArgumentException("Property value is not a integer type");
             }
             UserProfilePropertyName propName = UserProfilePropertyName.valueOf(key);
-            UserProfilePropertyValue propValue = userProfile.userProfileProperties()
-                    .getOrDefault(propName, UserProfilePropertyValue.valueOf(0));
+            UserProfilePropertyValue propValue = userProperties.getOrDefault(propName, UserProfilePropertyValue.valueOf(0));
 
-            if(!(propValue.getValue() instanceof Integer)) {
+            if (!(propValue.getValue() instanceof Integer)) {
                 throw new IllegalArgumentException("Existing property is not of type Integer");
             }
 
             UserProfilePropertyValue newValue = UserProfilePropertyValue.valueOf(
-                    ((Integer)propValue.getValue()) + ((Integer)value)
+                    ((Integer) propValue.getValue()) + ((Integer) value)
             );
-
-            userProfile.userProfileProperties().put(propName, newValue);
+            updated.set(true);
+            userProperties.put(propName, newValue);
         });
+        return updated.get();
     }
 }
