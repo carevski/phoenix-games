@@ -150,11 +150,14 @@ class UserResourceIntegrationTest {
             doNothing().when(incrementUserCommand).execute();
             doReturn(incrementUserCommand).when(commandFactory).instance(eq("increment"));
 
-            doReturn(Optional.of(new UserProfile(userId, Instant.now(), Map.of(UserProfilePropertyName.valueOf("test"), UserProfilePropertyValue.valueOf(4))))).when(userProfileDao).get(any(UserId.class));
+            UserProfile userProfile = new UserProfile(userId,
+                    Instant.now(),
+                    Map.of(UserProfilePropertyName.valueOf("test"), UserProfilePropertyValue.valueOf(4)));
+            doReturn(Optional.of(userProfile)).when(userProfileDao).get(any(UserId.class));
 
             Entity<CommandEntity> entity = Entity.entity(new CommandEntity(userId, "increment", Map.of("test", 4)), "application/json");
             var response = client.targetRest(URL).request().post(entity);
-
+            assertThatJson(response.readEntity(UserProfile.class)).isEqualTo(userProfile);
             verify(commandFactory).instance(any());
             verify(incrementUserCommand).setCommandData(any());
             verify(incrementUserCommand).execute();
